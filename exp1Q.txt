@@ -1,0 +1,30 @@
+What are the commands required to configure this experience? (*)
+    - ifconfig
+    - route -n
+    - arp -d
+    - faltam outros
+
+What are the ARP packets and what are they used for?
+The ARP packets are packets that serve to establish the connection between an IP and a MAC adress.
+
+What are the MAC and IP addresses of ARP packets and why?
+The MAC and IP adresses that are stored in arp packets belong to the devices that we established connection, recently, because linux cleans the arp packets regularly.
+São enviados em broadcast 2 endereços IP: o da máquina de destino (172.16.50.254, Tux54) e o da máquina de origem (172.16.50.01, Tux 53) no mesmo pacote ARP. 
+Como resposta o Tux54 envia um pacote ARP para o Tux53 que contém o seu endereço MAC, 00:21:5a:c3:78:70.
+
+What packets does the ping command generate?
+Enquanto não obtém o endereço MAC da máquina de destino, o *ping* gera pacotes ARP. Após fazer a ligação do endereço IP ao respetivo MAC, gera pacotes do tipo ICMP (*Internet Control Message Protocol*), para transferência de informação.
+
+What are the MAC and IP adresses of the ping packets? (*)
+The MAC and IP adresses are the ones from the target machine.
+Os endereços IP e MAC usados em pacotes ICMP são os das máquinas em comunicação: Tux53 e Tux54. 
+
+How to determine if a receiving Ethernet frame is ARP, IP, ICMP?
+See the protocol collumn in the Wireshark program.
+A designação do protocolo de cada frame está presente na coluna "Protocol" da captura no Wireshark. Por norma o protocolo é indicado nos primeiros 2 bytes da frame, no cabeçalho.
+
+How to determine the length of a receiving frame?
+See the length collumn in the Wireshark program.
+Existe uma coluna no Wireshark que mostra o tamanho, em bytes, das frames. Por norma o cabeçalho de cada frame contém essa informação.
+
+What is the loopback interface and why is it important? (*)
