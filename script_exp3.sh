@@ -1,3 +1,7 @@
+# configuration script for Tux41
+
+ifconfig eth1 up
+ifconfig eth1 172.16.41.253/24
 /interface bridge port remove [find interface =ether6]
 /interface bridge port add bridge=bridge41 interface=ether6
 
