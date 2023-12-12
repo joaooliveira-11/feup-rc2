@@ -11,7 +11,7 @@ int loginToFTP(int socket, char *user, char *password){
 
     write(socket, userRequest, strlen(userRequest));
     int answer = request_answer(socket);
-    if(answer != FTP_PASS_REQUIRED_CODE){
+    if(answer != READY_PASS){
         printf("Unexpected response from the server. Expected %d but received %d.\n", FTP_PASS_REQUIRED_CODE, answer);
         return -1;
     }
@@ -22,7 +22,7 @@ int loginToFTP(int socket, char *user, char *password){
 
     write(socket, passwordRequest, strlen(passwordRequest));
     int answer = request_answer(socket);
-    if(answer != FTP_LOGIN_SUCCESS_CODE){
+    if(answer != LOGIN_SUCCESS){
         printf("Unexpected response from the server. Expected %d but received %d.\n", FTP_LOGIN_SUCCESS_CODE, answer);
         return -1;
     }

@@ -1,19 +1,72 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include<arpa/inet.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
-#include <netinet/in.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <regex.h>
 #include <termios.h>
+#include <unistd.h>
+
+#define MAX_LENGTH  500
+#define PORT        21
+
+/* server responses */
+#define READY_AUTH      200
+#define READY_PASS      331
+#define READY_TRANSF    150
+#define LOGIN_SUCCESS   230
+#define PASSIVE         227
+#define TRANSF_SUCCESS  226
+#define END             221  
 
 
-/* Server Answers*/
-#define FTP_PASS_REQUIRED_CODE       331
-#define FTP_LOGIN_SUCCESS_CODE       230
+/* parse regex */
+#define AT              "@"
+#define BAR             "%[^/]//%[^/]"
+#define HOST_AT         "%[^/]//%[^@]@%[^/]"
+#define RESOURCE        "%[^/]//%*[^/]/%s"
+#define HOST            "%[^/]//%[^@]@%[^/]/%s"
+#define USER            "%*[^/]//%[^:/]"
+#define PASS            "%*[^(](%d,%d,%d,%d,%d,%d)%*[^\n$)]"
+
+/*Login */
+
+#define USER_CMD        "anonymous"
+#define PASS_CMD        "password"
+
+/* parser */
+struct url {
+    char user[MAX_LENGTH];
+    char pass[MAX_LENGTH];
+    char host[MAX_LENGTH];
+    char res[MAX_LENGTH];
+    char ip[MAX_LENGTH];
+    char file[MAX_LENGTH];
+};
+
+typedef enum {
+    START,
+    SINGLE,
+    MULTIPLE,
+    ENDING
+} state;
 
 
-int loginToFTP(int socket, char *user, char *password);
+int parse_url(char *input, struct url *output);
+
+int create_socket(char *ip, int port);
+
+int login(int sockfd, char *user, char *pass);
+
+int passive_mode(int sockfd, char *ip, int *port);
+
+int read_response(int sockfd, char *response);
+
+int request(int sockfd, char *target);
+
+int get_request(int sockfd, int sockfd2, char *target);
+
+int close_connection(int sockfd, int sockfd2);
+
