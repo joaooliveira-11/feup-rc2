@@ -36,6 +36,33 @@ int parse_url(char *input, struct URL *url) {
            strlen(url->pass) && strlen(url->res) && strlen(url->file));
 }
 
+int create_socket(char *ip, int port){
+    int socket_fd;
+
+    //to store server address info
+    struct sockaddr_in server_addr;
+
+    //create socket
+    if((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+        perror("Error creating socket");
+        return -1;
+    }
+
+    //set server address info
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(ip);
+
+    //connect to server
+    if(connect(socket_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0){
+        perror("Error connecting to server");
+        return -1;
+    }
+    printf("Connected to server. LETSGO MEU MENINO\n");
+    return socket_fd;
+
+}
+
 /*
 int loginToFTP(int socket, char *user, char *password){
     char userRequest[strlen(user) + 6];
@@ -81,6 +108,13 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Host: %s\nResource: %s\nFile: %s\nUser: %s\nPassword: %s\nIP Address: %s\n", url_info.host, url_info.res, url_info.file, url_info.user, url_info.pass, url_info.ip);
+
+    //descriptor for socket
+    int socket_fd = create_socket(url_info.ip, PORT);
+    if(socket_fd < 0){
+        printf("Error creating socket.\n");
+        return -1;
+    }
 
     return 0;
 
