@@ -13,23 +13,24 @@
 #define PORT        21
 
 /* server responses */
-#define READY_AUTH      200
+#define READY_AUTH      220
 #define READY_PASS      331
 #define READY_TRANSF    150
 #define LOGIN_SUCCESS   230
-#define PASSIVE         227
+#define SERVER_PASSIVE  227
 #define TRANSF_SUCCESS  226
 #define END             221  
 
 
 /* parse regex */
 #define AT              "@"
-#define BAR             "%[^/]//%[^/]"
-#define HOST_AT         "%[^/]//%[^@]@%[^/]"
-#define RESOURCE        "%[^/]//%*[^/]/%s"
-#define HOST            "%[^/]//%[^@]@%[^/]/%s"
+#define SLASH           "/"
+#define HOST            "%*[^/]//%[^/]"
+#define HOST_AT         "%*[^/]//%*[^@]@%[^/]"
+#define RESOURCE        "%*[^/]//%*[^/]/%s"
 #define USER            "%*[^/]//%[^:/]"
-#define PASS            "%*[^(](%d,%d,%d,%d,%d,%d)%*[^\n$)]"
+#define PASS            "%*[^/]//%*[^:]:%[^@\n$]"
+#define PASSIVE         "%*[^(](%d,%d,%d,%d,%d,%d)%*[^\n$)]"
 
 /*Login */
 
@@ -37,7 +38,7 @@
 #define PASS_CMD        "password"
 
 /* parser */
-struct url {
+struct URL {
     char user[MAX_LENGTH];
     char pass[MAX_LENGTH];
     char host[MAX_LENGTH];
@@ -54,7 +55,7 @@ typedef enum {
 } state;
 
 
-int parse_url(char *input, struct url *output);
+int parse_url(char *input, struct URL *output);
 
 int create_socket(char *ip, int port);
 
@@ -68,5 +69,5 @@ int request(int sockfd, char *target);
 
 int get_request(int sockfd, int sockfd2, char *target);
 
-int close_connection(int sockfd, int sockfd2);
+int shutdown(int sockfd, int sockfd2);
 

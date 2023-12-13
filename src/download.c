@@ -58,13 +58,35 @@ int create_socket(char *ip, int port){
         perror("Error connecting to server");
         return -1;
     }
-    printf("Connected to server. LETSGO MEU MENINO\n");
+    printf("Connected to server.\n");
     return socket_fd;
 
 }
 
-/*
-int loginToFTP(int socket, char *user, char *password){
+int request(int socket, char *target){
+
+    //write the target to the socket
+    if(write(socket, target, strlen(target)) < 0){
+        perror("Error writing to socket");
+        return -1;
+    }
+    printf("Request sent to server. QUE LEITE \n");
+    return 0;
+}
+
+int request_answer(int socket){
+    char answer[4];
+    int n = read(socket, answer, 3);
+    if(n < 0){
+        perror("Error reading from socket");
+        return -1;
+    }
+    answer[3] = '\0';
+    return atoi(answer);
+}
+
+
+int login(int socket, char *user, char *password){
     char userRequest[strlen(user) + 6];
     char passwordRequest[strlen(password) + 6];
 
@@ -74,8 +96,8 @@ int loginToFTP(int socket, char *user, char *password){
 
     write(socket, userRequest, strlen(userRequest));
     int answer = request_answer(socket);
-    if(answer != READY_PASS){
-        printf("Unexpected response from the server. Expected %d but received %d.\n", FTP_PASS_REQUIRED_CODE, answer);
+    if(answer != READY_AUTH){
+        printf("Unexpected response from the server. Expected %d but received %d.\n",READY_AUTH, answer);
         return -1;
     }
 
@@ -84,15 +106,15 @@ int loginToFTP(int socket, char *user, char *password){
     strcat(passwordRequest, "\n");
 
     write(socket, passwordRequest, strlen(passwordRequest));
-    int answer = request_answer(socket);
-    if(answer != LOGIN_SUCCESS){
-        printf("Unexpected response from the server. Expected %d but received %d.\n", FTP_LOGIN_SUCCESS_CODE, answer);
+    if(answer != READY_AUTH){
+        printf("Unexpected response from the server. Expected %d but received %d.\n", READY_AUTH, answer);
         return -1;
     }
-
+    printf("Logged in to server.\n");
     return 0;
-}   
-*/
+}
+
+
 int main(int argc, char *argv[]) {
     if(argc != 2){
         printf("Usage: ./download ftp://[<user>:<password>@]<host>/<url-path>\n");
@@ -115,6 +137,14 @@ int main(int argc, char *argv[]) {
         printf("Error creating socket.\n");
         return -1;
     }
+
+    //login to server
+    if (login(socket_fd, url_info.user, url_info.pass) < 0){
+        printf("Error logging in to FTP server.\n");
+        return -1;
+    }
+
+   
 
     return 0;
 
