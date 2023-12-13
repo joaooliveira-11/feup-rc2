@@ -70,21 +70,62 @@ int request(int socket, char *target){
         perror("Error writing to socket");
         return -1;
     }
-    printf("Request sent to server. QUE LEITE \n");
+    printf("Request sent to server.\n");
     return 0;
 }
 
-int request_answer(int socket){
-    char answer[4];
-    int n = read(socket, answer, 3);
-    if(n < 0){
-        perror("Error reading from socket");
+int request_answer(int socket, char *target){
+    char byte;
+    int index = 0, responseCode;
+    state_t state = START;
+    memset(target, 0, MAX_LENGTH);
+
+    while (state != END) {
+        if (read(socket, &byte, 1) <= 0) {
+            perror("read");
+            return -1;
+        }
+
+        if (index >= MAX_LENGTH - 1) {
+            fprintf(stderr, "Server response too long\n");
+            return -1;
+        }
+
+        switch (state) {
+            case START:
+                if (byte == ' ') state = SINGLE;
+                else if (byte == '-') state = MULTIPLE;
+                else if (byte == '\n') state = END;
+                else target[index++] = byte;
+                break;
+            case SINGLE:
+                if (byte == '\n') state = END;
+                else target[index++] = byte;
+                break;
+            case MULTIPLE:
+                if (byte == '\n') {
+                    memset(target, 0, MAX_LENGTH);
+                    state = START;
+                    index = 0;
+                }
+                else target[index++] = byte;
+                break;
+            case END:
+                break;
+            default:
+                break;
+        }
+    }
+
+    target[index] = '\0'; // Null-terminate the string
+
+    if (sscanf(target, RESPONSE, &responseCode) != 1) {
+        fprintf(stderr, "Failed to parse server response\n");
         return -1;
     }
-    answer[3] = '\0';
-    return atoi(answer);
-}
 
+    return responseCode;
+}
 
 int login(int socket, char *user, char *password){
     char userRequest[strlen(user) + 6];
@@ -95,7 +136,8 @@ int login(int socket, char *user, char *password){
     strcat(userRequest, "\n");
 
     write(socket, userRequest, strlen(userRequest));
-    int answer = request_answer(socket);
+    char asd[MAX_LENGTH];
+    int answer = request_answer(socket, asd);
     if(answer != READY_AUTH){
         printf("Unexpected response from the server. Expected %d but received %d.\n",READY_AUTH, answer);
         return -1;
@@ -111,6 +153,25 @@ int login(int socket, char *user, char *password){
         return -1;
     }
     printf("Logged in to server.\n");
+    return 0;
+}
+
+int passive_mode(int socket, char *ip, int *port){
+    char pasvRequest[] = "pasv\n";
+    write(socket, pasvRequest, 5);
+    char asd[MAX_LENGTH];
+    int answer = request_answer(socket, asd);
+    printf("Answer: %d\n", answer);
+    if(answer != SERVER_PASSIVE){
+        printf("Unexpected response from the server. Expected %d but received %d.\n", SERVER_PASSIVE, answer);
+        return -1;
+    }
+
+    int ip1, ip2, ip3, ip4, p1, p2;
+    sscanf(pasvRequest, PASSIVE, &ip1, &ip2, &ip3, &ip4, &p1, &p2);
+    sprintf(ip, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+    *port = p1 * 256 + p2;
+    printf("IP: %s\nPort: %d\n", ip, *port);
     return 0;
 }
 
@@ -143,6 +204,30 @@ int main(int argc, char *argv[]) {
         printf("Error logging in to FTP server.\n");
         return -1;
     }
+
+    //passive mode
+    int port;
+    char ip[MAX_LENGTH];
+    if (passive_mode(socket_fd, ip, &port) < 0){
+        printf("Error entering passive mode.\n");
+        return -1;
+    }
+
+    printf("data ");
+    //create socket for data transfer
+    int data_socket = create_socket(ip, port);
+    if(data_socket < 0){
+        printf("Error creating socket for data transfer.\n");
+        return -1;
+    }
+
+
+    //request file
+    if(request(data_socket, url_info.res) < 0){
+        printf("Error requesting file.\n");
+        return -1;
+    }
+
 
    
 

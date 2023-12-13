@@ -31,6 +31,7 @@
 #define USER            "%*[^/]//%[^:/]"
 #define PASS            "%*[^/]//%*[^:]:%[^@\n$]"
 #define PASSIVE         "%*[^(](%d,%d,%d,%d,%d,%d)%*[^\n$)]"
+#define RESPONSE        "%d %*[^\n$]"
 
 /*Login */
 
@@ -52,7 +53,7 @@ typedef enum {
     SINGLE,
     MULTIPLE,
     ENDING
-} state;
+} state_t;
 
 
 int parse_url(char *input, struct URL *output);
