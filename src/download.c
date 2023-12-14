@@ -2,12 +2,9 @@
 
 int parse_url(char *input, struct URL *url) {
 
-    regex_t regex;
-    regcomp(&regex, SLASH, 0);
-    if (regexec(&regex, input, 0, NULL, 0)) return -1;
+    if (strchr(input, '/') == NULL) return -1;
 
-    regcomp(&regex, AT, 0);
-    if (regexec(&regex, input, 0, NULL, 0) != 0) { //ftp://<host>/<url-path>
+    if (strchr(input, '@') == NULL) { //ftp://<host>/<url-path>
         
         sscanf(input, HOST, url->host);
         strcpy(url->user, USER_CMD);
@@ -21,7 +18,15 @@ int parse_url(char *input, struct URL *url) {
     }
 
     sscanf(input, RESOURCE, url->res);
-    strcpy(url->file, strrchr(input, '/') + 1);
+
+    char *last_slash = strrchr(input, '/');
+    if(last_slash != NULL){
+        strcpy(url->file, last_slash + 1);
+    }
+    else{
+        printf("Error: No slash found in the input string.\n");
+        return -1;
+    }
     
     struct hostent *h;
     if (strlen(url->host) == 0) return -1;
@@ -29,8 +34,7 @@ int parse_url(char *input, struct URL *url) {
         printf("Invalid hostname '%s'\n", url->host);
         return -1;
     }
-    
-    strcpy(url->ip, inet_ntoa(*((struct in_addr *) h->h_addr)));
+    strcpy(url->ip, inet_ntoa(*((struct in_addr *) h->h_addr))); 
     
     return !(strlen(url->host) && strlen(url->user) && 
            strlen(url->pass) && strlen(url->res) && strlen(url->file));

@@ -23,8 +23,6 @@
 
 
 /* parse regex */
-#define AT              "@"
-#define SLASH           "/"
 #define HOST            "%*[^/]//%[^/]"
 #define HOST_AT         "%*[^/]//%*[^@]@%[^/]"
 #define RESOURCE        "%*[^/]//%*[^/]/%s"
