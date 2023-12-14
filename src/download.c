@@ -74,7 +74,9 @@ int request(int socket, char *target){
     return 0;
 }
 
-int request_answer(int socket, char *target){
+int request_answer(int socket){
+
+    char *target = malloc(MAX_LENGTH);
     char byte;
     int index = 0, responseCode;
     state_t state = START;
@@ -136,10 +138,9 @@ int login(int socket, char *user, char *password){
     strcat(userRequest, "\n");
 
     write(socket, userRequest, strlen(userRequest));
-    char asd[MAX_LENGTH];
-    int answer = request_answer(socket, asd);
-    if(answer != READY_AUTH){
-        printf("Unexpected response from the server. Expected %d but received %d.\n",READY_AUTH, answer);
+    int readypass = request_answer(socket);
+    if(readypass != READY_PASS){
+        printf("Unexpected response from the server. Expected %d but received %d.\n",READY_PASS,readypass);
         return -1;
     }
 
@@ -148,8 +149,9 @@ int login(int socket, char *user, char *password){
     strcat(passwordRequest, "\n");
 
     write(socket, passwordRequest, strlen(passwordRequest));
-    if(answer != READY_AUTH){
-        printf("Unexpected response from the server. Expected %d but received %d.\n", READY_AUTH, answer);
+    int login = request_answer(socket);
+    if(login != LOGIN_SUCCESS){
+        printf("Unexpected response from the server. Expected %d but received %d.\n", LOGIN_SUCCESS, login);
         return -1;
     }
     printf("Logged in to server.\n");
@@ -159,8 +161,7 @@ int login(int socket, char *user, char *password){
 int passive_mode(int socket, char *ip, int *port){
     char pasvRequest[] = "pasv\n";
     write(socket, pasvRequest, 5);
-    char asd[MAX_LENGTH];
-    int answer = request_answer(socket, asd);
+    int answer = request_answer(socket);
     printf("Answer: %d\n", answer);
     if(answer != SERVER_PASSIVE){
         printf("Unexpected response from the server. Expected %d but received %d.\n", SERVER_PASSIVE, answer);
@@ -194,8 +195,13 @@ int main(int argc, char *argv[]) {
 
     //descriptor for socket
     int socket_fd = create_socket(url_info.ip, PORT);
+    
     if(socket_fd < 0){
         printf("Error creating socket.\n");
+        return -1;
+    }
+    if(request_answer(socket_fd) != READY_AUTH){
+        printf("Error server not ready.\n");
         return -1;
     }
 
