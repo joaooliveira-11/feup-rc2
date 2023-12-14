@@ -74,9 +74,8 @@ int request(int socket, char *target){
     return 0;
 }
 
-int request_answer(int socket){
+int request_answer(int socket, char *target){
 
-    char *target = malloc(MAX_LENGTH);
     char byte;
     int index = 0, responseCode;
     state_t state = START;
@@ -138,7 +137,8 @@ int login(int socket, char *user, char *password){
     strcat(userRequest, "\n");
 
     write(socket, userRequest, strlen(userRequest));
-    int readypass = request_answer(socket);
+    char answer[MAX_LENGTH];
+    int readypass = request_answer(socket, answer);
     if(readypass != READY_PASS){
         printf("Unexpected response from the server. Expected %d but received %d.\n",READY_PASS,readypass);
         return -1;
@@ -149,7 +149,8 @@ int login(int socket, char *user, char *password){
     strcat(passwordRequest, "\n");
 
     write(socket, passwordRequest, strlen(passwordRequest));
-    int login = request_answer(socket);
+    char answer1[MAX_LENGTH];
+    int login = request_answer(socket, answer1);
     if(login != LOGIN_SUCCESS){
         printf("Unexpected response from the server. Expected %d but received %d.\n", LOGIN_SUCCESS, login);
         return -1;
@@ -161,15 +162,16 @@ int login(int socket, char *user, char *password){
 int passive_mode(int socket, char *ip, int *port){
     char pasvRequest[] = "pasv\n";
     write(socket, pasvRequest, 5);
-    int answer = request_answer(socket);
-    printf("Answer: %d\n", answer);
-    if(answer != SERVER_PASSIVE){
-        printf("Unexpected response from the server. Expected %d but received %d.\n", SERVER_PASSIVE, answer);
+    char answer[MAX_LENGTH];
+    int passive =  request_answer(socket, answer);
+    printf("Answer: %d\n", passive);
+    if(passive != SERVER_PASSIVE){
+        printf("Unexpected response from the server. Expected %d but received %d.\n", SERVER_PASSIVE, passive);
         return -1;
     }
 
     int ip1, ip2, ip3, ip4, p1, p2;
-    sscanf(pasvRequest, PASSIVE, &ip1, &ip2, &ip3, &ip4, &p1, &p2);
+    sscanf(answer, PASSIVE, &ip1, &ip2, &ip3, &ip4, &p1, &p2);
     sprintf(ip, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
     *port = p1 * 256 + p2;
     printf("IP: %s\nPort: %d\n", ip, *port);
@@ -200,7 +202,9 @@ int main(int argc, char *argv[]) {
         printf("Error creating socket.\n");
         return -1;
     }
-    if(request_answer(socket_fd) != READY_AUTH){
+
+    char server_ready[MAX_LENGTH];
+    if(request_answer(socket_fd, server_ready) != READY_AUTH){
         printf("Error server not ready.\n");
         return -1;
     }
@@ -219,7 +223,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    printf("data ");
+    printf("creating data socket... \n");
     //create socket for data transfer
     int data_socket = create_socket(ip, port);
     if(data_socket < 0){
