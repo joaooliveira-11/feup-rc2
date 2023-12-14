@@ -71,4 +71,3 @@ int request(int sockfd, char *target);
 int get_request(int sockfd, int sockfd2, char *target);
 
 int shutdown(int sockfd, int sockfd2);
-
