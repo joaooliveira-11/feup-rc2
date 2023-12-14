@@ -1,6 +1,31 @@
 #include "../include/download.h"
 
 
+
+int request_answer(int socket){
+    char answer [MAX_SIZE];
+    int answer_code = 0;
+    int ntries_aux = MAX_TRIES;
+    int bytesread = 0;
+
+    while (ntries_aux) {
+        int bytes = recv(socket, answer + bytesread, MAX_SIZE - bytesread, MSG_DONTWAIT);
+        if(bytes <=0){
+            ntries_aux--;
+            usleep(100000);
+        }
+        else{
+            ntries_aux = MAX_TRIES;
+        }
+        bytesread += bytes;
+    }
+
+    answer[bytesread] = '\0'; 
+
+    sscanf(answer, RESPCODE_REGEX, &answer_code);
+    return answer_code;
+}
+
 int loginToFTP(int socket, char *user, char *password){
     char userRequest[strlen(user) + 6];
     char passwordRequest[strlen(password) + 6];
