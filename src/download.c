@@ -63,17 +63,6 @@ int create_socket(char *ip, int port){
 
 }
 
-int request(int socket, char *target){
-
-    //write the target to the socket
-    if(write(socket, target, strlen(target)) < 0){
-        perror("Error writing to socket");
-        return -1;
-    }
-    printf("Request sent to server.\n");
-    return 0;
-}
-
 int request_answer(int socket, char *target){
 
     char byte;
@@ -126,6 +115,54 @@ int request_answer(int socket, char *target){
     }
 
     return responseCode;
+}
+
+int request(int socket, char *target){
+    printf("Requesting file...\n");
+    //write the target to the socket
+    char request[strlen(target) + 6], answer[MAX_LENGTH];
+    sprintf(request, "retr %s\n ", target);
+    if(write(socket, request, sizeof(request)) < 0){
+        perror("Error writing to socket");
+        return -1;
+    }
+
+    int readytransf = request_answer(socket, answer);
+    if(readytransf != READY_TRANSF){
+        printf("Unexpected response from the server. Expected %d but received %d.\n", READY_TRANSF, readytransf);
+        return -1;
+    }
+    
+    printf("Request sent to server.\n");
+    return 0;
+}
+
+int get_request(int sockfd, int sockfd2, char *target){
+    printf("Receiving file...\n");
+    FILE *file = fopen(target, "w");
+    if(file == NULL){
+        perror("Error opening file");
+        return -1;
+    }
+
+    char buffer[MAX_LENGTH];
+    int bytes_read;
+    while((bytes_read = read(sockfd2, buffer, MAX_LENGTH)) > 0){
+        if(fwrite(buffer, 1, bytes_read, file) < bytes_read){
+            perror("Error writing to file");
+            return -1;
+        }
+    }
+
+    if(bytes_read < 0){
+        perror("Error reading from socket");
+        return -1;
+    }
+
+    fclose(file);
+    printf("File received.\n");
+    return 0;
+
 }
 
 int login(int socket, char *user, char *password){
@@ -233,8 +270,14 @@ int main(int argc, char *argv[]) {
 
 
     //request file
-    if(request(data_socket, url_info.res) < 0){
+    if(request(socket_fd, url_info.res) < 0){
         printf("Error requesting file.\n");
+        return -1;
+    }
+
+    //receive file
+    if (get_request(socket_fd, data_socket, url_info.file) < 0){
+        printf("Error receiving file.\n");
         return -1;
     }
 
