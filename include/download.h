@@ -50,7 +50,7 @@ typedef enum {
     START,
     SINGLE,
     MULTIPLE,
-    ENDING
+    END_READ,
 } state_t;
 
 

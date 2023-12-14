@@ -31,7 +31,8 @@ int parse_url(char *input, struct URL *url) {
     struct hostent *h;
     if (strlen(url->host) == 0) return -1;
     if ((h = gethostbyname(url->host)) == NULL) {
-        printf("Invalid hostname '%s'\n", url->host);
+        // printf("Invalid hostname '%s'\n", url->host);
+        herror("gethostbyname()");
         return -1;
     }
     strcpy(url->ip, inet_ntoa(*((struct in_addr *) h->h_addr))); 
@@ -46,35 +47,36 @@ int create_socket(char *ip, int port){
     //to store server address info
     struct sockaddr_in server_addr;
 
+    //set server address info
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(ip);
+
     //create socket
     if((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         perror("Error creating socket");
         return -1;
     }
 
-    //set server address info
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    server_addr.sin_addr.s_addr = inet_addr(ip);
-
     //connect to server
     if(connect(socket_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0){
         perror("Error connecting to server");
         return -1;
     }
+
     printf("Connected to server.\n");
     return socket_fd;
-
 }
 
-int request_answer(int socket, char *target){
+int request_answer(int socket, char *answer){
 
     char byte;
     int index = 0, responseCode;
     state_t state = START;
-    memset(target, 0, MAX_LENGTH);
+    memset(answer, 0, MAX_LENGTH);
 
-    while (state != END) {
+    while (state != END_READ) {
         if (read(socket, &byte, 1) <= 0) {
             perror("read");
             return -1;
@@ -86,40 +88,71 @@ int request_answer(int socket, char *target){
         }
 
         switch (state) {
-            case START:
+            case START:{
                 if (byte == ' ') state = SINGLE;
                 else if (byte == '-') state = MULTIPLE;
-                else if (byte == '\n') state = END;
-                else target[index++] = byte;
+                else if (byte == '\n') state = END_READ;
+                else answer[index++] = byte;
                 break;
-            case SINGLE:
-                if (byte == '\n') state = END;
-                else target[index++] = byte;
+            }
+            case SINGLE:{
+                if (byte == '\n') state = END_READ;
+                else answer[index++] = byte;
                 break;
-            case MULTIPLE:
+            }
+            case MULTIPLE:{
                 if (byte == '\n') {
-                    memset(target, 0, MAX_LENGTH);
+                    memset(answer, 0, MAX_LENGTH);
                     state = START;
                     index = 0;
                 }
-                else target[index++] = byte;
+                else answer[index++] = byte;
                 break;
-            case END:
+            }
+            case END_READ:
                 break;
             default:
                 break;
         }
     }
 
-    target[index] = '\0'; // Null-terminate the string
+    answer[index] = '\0'; // Null-terminate the strinG
 
-    if (sscanf(target, RESPONSE, &responseCode) != 1) {
+    if (sscanf(answer, RESPONSE, &responseCode) != 1) {
+        fprintf(stderr, "Failed to parse server response\n");
+        return -1;
+    }
+    printf("Server Response: %s\n", answer);
+    return responseCode;
+}
+
+
+/*
+int request_answer(int socket, char *answer) {
+    char byte;
+    int index = 0, responseCode;
+
+    memset(answer, 0, MAX_LENGTH);
+
+    while (read(socket, &byte, 1) > 0 && byte != '\n') {
+        if (index >= MAX_LENGTH - 1) {
+            fprintf(stderr, "Server response too long\n");
+            return -1;
+        }
+        answer[index++] = byte;
+    }
+
+    answer[index] = '\0'; // Null-terminate the string
+
+    if (sscanf(answer, RESPONSE, &responseCode) != 1) {
         fprintf(stderr, "Failed to parse server response\n");
         return -1;
     }
 
+    printf("Server Response: %s\n", answer);
     return responseCode;
 }
+*/
 
 int request(int socket, char *target){
     printf("Requesting file...\n");
@@ -147,7 +180,7 @@ int get_request(int sockfd, int sockfd2, char *target){
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "downloads/%s", target);
     printf("Writing to file: %s\n", filepath);
-    
+
     FILE *file = fopen(filepath, "w");
     if(file == NULL){
         perror("Error opening file");
@@ -176,13 +209,13 @@ int get_request(int sockfd, int sockfd2, char *target){
 int login(int socket, char *user, char *password){
     char userRequest[strlen(user) + 6];
     char passwordRequest[strlen(password) + 6];
+    char answer[MAX_LENGTH];
 
     strcpy(userRequest, "user ");
     strcat(userRequest, user);
     strcat(userRequest, "\n");
 
     write(socket, userRequest, strlen(userRequest));
-    char answer[MAX_LENGTH];
     int readypass = request_answer(socket, answer);
     if(readypass != READY_PASS){
         printf("Unexpected response from the server. Expected %d but received %d.\n",READY_PASS,readypass);
@@ -194,8 +227,7 @@ int login(int socket, char *user, char *password){
     strcat(passwordRequest, "\n");
 
     write(socket, passwordRequest, strlen(passwordRequest));
-    char answer1[MAX_LENGTH];
-    int login = request_answer(socket, answer1);
+    int login = request_answer(socket, answer);
     if(login != LOGIN_SUCCESS){
         printf("Unexpected response from the server. Expected %d but received %d.\n", LOGIN_SUCCESS, login);
         return -1;
@@ -289,11 +321,5 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-
-   
-
     return 0;
-
-
-
 }
