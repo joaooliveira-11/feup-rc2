@@ -143,7 +143,12 @@ int request(int socket, char *target){
 
 int get_request(int sockfd, int sockfd2, char *target){
     printf("Receiving file...\n");
-    FILE *file = fopen(target, "w");
+
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "downloads/%s", target);
+    printf("Writing to file: %s\n", filepath);
+    
+    FILE *file = fopen(filepath, "w");
     if(file == NULL){
         perror("Error opening file");
         return -1;
@@ -166,7 +171,6 @@ int get_request(int sockfd, int sockfd2, char *target){
     fclose(file);
     printf("File received.\n");
     return 0;
-
 }
 
 int login(int socket, char *user, char *password){
