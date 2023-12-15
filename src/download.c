@@ -129,20 +129,37 @@ int request_answer(int socket, char *answer){
 
 /*
 int request_answer(int socket, char *answer) {
-    char byte;
-    int index = 0, responseCode;
+    int index = 0, responseCode = 0;
+    int bytesRead, totalBytesRead = 0;
+    fd_set set;
+    struct timeval timeout;
 
     memset(answer, 0, MAX_LENGTH);
 
-    while (read(socket, &byte, 1) > 0 && byte != '\n') {
-        if (index >= MAX_LENGTH - 1) {
-            fprintf(stderr, "Server response too long\n");
+    while (1) {
+        FD_ZERO(&set); // clear the set
+        FD_SET(socket, &set); // add our file descriptor to the set 
+
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 100000; // 100 ms timeout
+
+        int rv = select(socket + 1, &set, NULL, NULL, &timeout);
+        if(rv == -1) {
+            perror("select"); // an error accured 
             return -1;
+        } else if(rv == 0) {
+            break; // a timeout occured 
+        } else {
+            bytesRead = recv(socket, answer + totalBytesRead, MAX_LENGTH - totalBytesRead, 0); // there was data to read
+            if (bytesRead <= 0) {
+                break;
+            } else {
+                totalBytesRead += bytesRead;
+            }
         }
-        answer[index++] = byte;
     }
 
-    answer[index] = '\0'; // Null-terminate the string
+    answer[totalBytesRead] = '\0'; // Null-terminate the string
 
     if (sscanf(answer, RESPONSE, &responseCode) != 1) {
         fprintf(stderr, "Failed to parse server response\n");

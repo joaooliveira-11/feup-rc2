@@ -9,7 +9,13 @@
 #include <termios.h>
 #include <unistd.h>
 
-#define MAX_LENGTH  500
+// For the second version of read server answer
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/select.h>
+#include <sys/time.h>
+
+#define MAX_LENGTH  1024
 #define PORT        21
 
 /* server responses */
