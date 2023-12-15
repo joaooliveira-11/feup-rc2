@@ -175,11 +175,12 @@ int request(int socket, char *target){
     printf("Requesting file...\n");
     //write the target to the socket
     char request[strlen(target) + 6], answer[MAX_LENGTH];
-    sprintf(request, "retr %s\n ", target);
+    sprintf(request, "retr %s\n", target);
     if(write(socket, request, sizeof(request)) < 0){
         perror("Error writing to socket");
         return -1;
     }
+    printf("Sending request: %s", request);
 
     int readytransf = request_answer(socket, answer);
     if(readytransf != READY_TRANSF){
@@ -233,6 +234,7 @@ int login(int socket, char *user, char *password){
     strcat(userRequest, "\n");
 
     write(socket, userRequest, strlen(userRequest));
+    printf("Sending request: %s", userRequest);
     int readypass = request_answer(socket, answer);
     if(readypass != READY_PASS){
         printf("Unexpected response from the server. Expected %d but received %d.\n",READY_PASS,readypass);
@@ -244,6 +246,7 @@ int login(int socket, char *user, char *password){
     strcat(passwordRequest, "\n");
 
     write(socket, passwordRequest, strlen(passwordRequest));
+    printf("Sending request: %s", passwordRequest);
     int login = request_answer(socket, answer);
     if(login != LOGIN_SUCCESS){
         printf("Unexpected response from the server. Expected %d but received %d.\n", LOGIN_SUCCESS, login);
@@ -256,9 +259,10 @@ int login(int socket, char *user, char *password){
 int passive_mode(int socket, char *ip, int *port){
     char pasvRequest[] = "pasv\n";
     write(socket, pasvRequest, 5);
+    printf("Sending request: %s", pasvRequest);
     char answer[MAX_LENGTH];
     int passive =  request_answer(socket, answer);
-    printf("Answer: %d\n", passive);
+    //printf("Answer: %d\n", passive);
     if(passive != SERVER_PASSIVE){
         printf("Unexpected response from the server. Expected %d but received %d.\n", SERVER_PASSIVE, passive);
         return -1;
