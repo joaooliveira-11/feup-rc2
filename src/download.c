@@ -2,12 +2,9 @@
 
 int parse_url(char *input, struct URL *url) {
 
-    regex_t regex;
-    regcomp(&regex, SLASH, 0);
-    if (regexec(&regex, input, 0, NULL, 0)) return -1;
+    if (strchr(input, '/') == NULL) return -1;
 
-    regcomp(&regex, AT, 0);
-    if (regexec(&regex, input, 0, NULL, 0) != 0) { //ftp://<host>/<url-path>
+    if (strchr(input, '@') == NULL) { //ftp://<host>/<url-path>
         
         sscanf(input, HOST, url->host);
         strcpy(url->user, USER_CMD);
@@ -21,16 +18,24 @@ int parse_url(char *input, struct URL *url) {
     }
 
     sscanf(input, RESOURCE, url->res);
-    strcpy(url->file, strrchr(input, '/') + 1);
+
+    char *last_slash = strrchr(input, '/');
+    if(last_slash != NULL){
+        strcpy(url->file, last_slash + 1);
+    }
+    else{
+        printf("Error: No slash found in the input string.\n");
+        return -1;
+    }
     
     struct hostent *h;
     if (strlen(url->host) == 0) return -1;
     if ((h = gethostbyname(url->host)) == NULL) {
-        printf("Invalid hostname '%s'\n", url->host);
+        // printf("Invalid hostname '%s'\n", url->host);
+        herror("gethostbyname()");
         return -1;
     }
-    
-    strcpy(url->ip, inet_ntoa(*((struct in_addr *) h->h_addr)));
+    strcpy(url->ip, inet_ntoa(*((struct in_addr *) h->h_addr))); 
     
     return !(strlen(url->host) && strlen(url->user) && 
            strlen(url->pass) && strlen(url->res) && strlen(url->file));
@@ -42,35 +47,36 @@ int create_socket(char *ip, int port){
     //to store server address info
     struct sockaddr_in server_addr;
 
+    //set server address info
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(ip);
+
     //create socket
     if((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         perror("Error creating socket");
         return -1;
     }
 
-    //set server address info
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    server_addr.sin_addr.s_addr = inet_addr(ip);
-
     //connect to server
     if(connect(socket_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0){
         perror("Error connecting to server");
         return -1;
     }
+
     printf("Connected to server.\n");
     return socket_fd;
-
 }
 
-int request_answer(int socket, char *target){
+int request_answer(int socket, char *answer){
 
     char byte;
     int index = 0, responseCode;
     state_t state = START;
-    memset(target, 0, MAX_LENGTH);
+    memset(answer, 0, MAX_LENGTH);
 
-    while (state != END) {
+    while (state != END_READ) {
         if (read(socket, &byte, 1) <= 0) {
             perror("read");
             return -1;
@@ -82,50 +88,99 @@ int request_answer(int socket, char *target){
         }
 
         switch (state) {
-            case START:
+            case START:{
                 if (byte == ' ') state = SINGLE;
                 else if (byte == '-') state = MULTIPLE;
-                else if (byte == '\n') state = END;
-                else target[index++] = byte;
+                else if (byte == '\n') state = END_READ;
+                else answer[index++] = byte;
                 break;
-            case SINGLE:
-                if (byte == '\n') state = END;
-                else target[index++] = byte;
+            }
+            case SINGLE:{
+                if (byte == '\n') state = END_READ;
+                else answer[index++] = byte;
                 break;
-            case MULTIPLE:
+            }
+            case MULTIPLE:{
                 if (byte == '\n') {
-                    memset(target, 0, MAX_LENGTH);
+                    memset(answer, 0, MAX_LENGTH);
                     state = START;
                     index = 0;
                 }
-                else target[index++] = byte;
+                else answer[index++] = byte;
                 break;
-            case END:
+            }
+            case END_READ:
                 break;
             default:
                 break;
         }
     }
 
-    target[index] = '\0'; // Null-terminate the string
+    answer[index] = '\0'; // Null-terminate the strinG
 
-    if (sscanf(target, RESPONSE, &responseCode) != 1) {
+    if (sscanf(answer, RESPONSE, &responseCode) != 1) {
+        fprintf(stderr, "Failed to parse server response\n");
+        return -1;
+    }
+    printf("Server Response: %s\n", answer);
+    return responseCode;
+}
+
+
+/*
+int request_answer(int socket, char *answer) {
+    int index = 0, responseCode = 0;
+    int bytesRead, totalBytesRead = 0;
+    fd_set set;
+    struct timeval timeout;
+
+    memset(answer, 0, MAX_LENGTH);
+
+    while (1) {
+        FD_ZERO(&set); // clear the set
+        FD_SET(socket, &set); // add our file descriptor to the set 
+
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 100000; // 100 ms timeout
+
+        int rv = select(socket + 1, &set, NULL, NULL, &timeout);
+        if(rv == -1) {
+            perror("select"); // an error accured 
+            return -1;
+        } else if(rv == 0) {
+            break; // a timeout occured 
+        } else {
+            bytesRead = recv(socket, answer + totalBytesRead, MAX_LENGTH - totalBytesRead, 0); // there was data to read
+            if (bytesRead <= 0) {
+                break;
+            } else {
+                totalBytesRead += bytesRead;
+            }
+        }
+    }
+
+    answer[totalBytesRead] = '\0'; // Null-terminate the string
+
+    if (sscanf(answer, RESPONSE, &responseCode) != 1) {
         fprintf(stderr, "Failed to parse server response\n");
         return -1;
     }
 
+    printf("Server Response: %s\n", answer);
     return responseCode;
 }
+*/
 
 int request(int socket, char *target){
     printf("Requesting file...\n");
     //write the target to the socket
     char request[strlen(target) + 6], answer[MAX_LENGTH];
-    sprintf(request, "retr %s\n ", target);
+    sprintf(request, "retr %s\n", target);
     if(write(socket, request, sizeof(request)) < 0){
         perror("Error writing to socket");
         return -1;
     }
+    printf("Sending request: %s", request);
 
     int readytransf = request_answer(socket, answer);
     if(readytransf != READY_TRANSF){
@@ -139,7 +194,12 @@ int request(int socket, char *target){
 
 int get_request(int sockfd, int sockfd2, char *target){
     printf("Receiving file...\n");
-    FILE *file = fopen(target, "w");
+
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "downloads/%s", target);
+    printf("Writing to file: %s\n", filepath);
+
+    FILE *file = fopen(filepath, "w");
     if(file == NULL){
         perror("Error opening file");
         return -1;
@@ -162,19 +222,19 @@ int get_request(int sockfd, int sockfd2, char *target){
     fclose(file);
     printf("File received.\n");
     return 0;
-
 }
 
 int login(int socket, char *user, char *password){
     char userRequest[strlen(user) + 6];
     char passwordRequest[strlen(password) + 6];
+    char answer[MAX_LENGTH];
 
     strcpy(userRequest, "user ");
     strcat(userRequest, user);
     strcat(userRequest, "\n");
 
     write(socket, userRequest, strlen(userRequest));
-    char answer[MAX_LENGTH];
+    printf("Sending request: %s", userRequest);
     int readypass = request_answer(socket, answer);
     if(readypass != READY_PASS){
         printf("Unexpected response from the server. Expected %d but received %d.\n",READY_PASS,readypass);
@@ -186,8 +246,8 @@ int login(int socket, char *user, char *password){
     strcat(passwordRequest, "\n");
 
     write(socket, passwordRequest, strlen(passwordRequest));
-    char answer1[MAX_LENGTH];
-    int login = request_answer(socket, answer1);
+    printf("Sending request: %s", passwordRequest);
+    int login = request_answer(socket, answer);
     if(login != LOGIN_SUCCESS){
         printf("Unexpected response from the server. Expected %d but received %d.\n", LOGIN_SUCCESS, login);
         return -1;
@@ -199,9 +259,10 @@ int login(int socket, char *user, char *password){
 int passive_mode(int socket, char *ip, int *port){
     char pasvRequest[] = "pasv\n";
     write(socket, pasvRequest, 5);
+    printf("Sending request: %s", pasvRequest);
     char answer[MAX_LENGTH];
     int passive =  request_answer(socket, answer);
-    printf("Answer: %d\n", passive);
+    //printf("Answer: %d\n", passive);
     if(passive != SERVER_PASSIVE){
         printf("Unexpected response from the server. Expected %d but received %d.\n", SERVER_PASSIVE, passive);
         return -1;
@@ -281,11 +342,5 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-
-   
-
     return 0;
-
-
-
 }
