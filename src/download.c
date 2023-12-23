@@ -31,6 +31,7 @@ int parse_url(char *input, struct URL *url) {
     struct hostent *h;
     if (strlen(url->host) == 0) return -1;
     if ((h = gethostbyname(url->host)) == NULL) {
+        // printf("Invalid hostname '%s'\n", url->host);
         herror("gethostbyname()");
         return -1;
     }
@@ -68,59 +69,44 @@ int create_socket(char *ip, int port){
     return socket_fd;
 }
 
-int request_answer(int socket, char *answer){
+int request_answer(int socket, char *answer) {
+    int index = 0, responseCode = 0;
+    int bytesRead, totalBytesRead = 0;
+    fd_set set;
+    struct timeval timeout;
 
-    char byte;
-    int index = 0, responseCode;
-    state_t state = START;
     memset(answer, 0, MAX_LENGTH);
 
-    while (state != END_READ) {
-        if (read(socket, &byte, 1) <= 0) {
-            perror("read");
-            return -1;
-        }
+    while (1) {
+        FD_ZERO(&set); // clear the set
+        FD_SET(socket, &set); // add our file descriptor to the set 
 
-        if (index >= MAX_LENGTH - 1) {
-            fprintf(stderr, "Server response too long\n");
-            return -1;
-        }
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 100000; // 100 ms timeout
 
-        switch (state) {
-            case START:{
-                if (byte == ' ') state = SINGLE;
-                else if (byte == '-') state = MULTIPLE;
-                else if (byte == '\n') state = END_READ;
-                else answer[index++] = byte;
+        int rv = select(socket + 1, &set, NULL, NULL, &timeout);
+        if(rv == -1) {
+            perror("select"); // an error accured 
+            return -1;
+        } else if(rv == 0) {
+            break; // a timeout occured 
+        } else {
+            bytesRead = recv(socket, answer + totalBytesRead, MAX_LENGTH - totalBytesRead, 0); // there was data to read
+            if (bytesRead <= 0) {
                 break;
+            } else {
+                totalBytesRead += bytesRead;
             }
-            case SINGLE:{
-                if (byte == '\n') state = END_READ;
-                else answer[index++] = byte;
-                break;
-            }
-            case MULTIPLE:{
-                if (byte == '\n') {
-                    memset(answer, 0, MAX_LENGTH);
-                    state = START;
-                    index = 0;
-                }
-                else answer[index++] = byte;
-                break;
-            }
-            case END_READ:
-                break;
-            default:
-                break;
         }
     }
 
-    answer[index] = '\0'; // Null-terminate the strinG
+    answer[totalBytesRead] = '\0'; // Null-terminate the string
 
     if (sscanf(answer, RESPONSE, &responseCode) != 1) {
         fprintf(stderr, "Failed to parse server response\n");
         return -1;
     }
+
     printf("Server Response: %s\n", answer);
     return responseCode;
 }
@@ -217,6 +203,7 @@ int passive_mode(int socket, char *ip, int *port){
     printf("Sending request: %s", pasvRequest);
     char answer[MAX_LENGTH];
     int passive =  request_answer(socket, answer);
+    //printf("Answer: %d\n", passive);
     if(passive != SERVER_PASSIVE){
         printf("Unexpected response from the server. Expected %d but received %d.\n", SERVER_PASSIVE, passive);
         return -1;
