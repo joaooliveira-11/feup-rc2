@@ -60,17 +60,17 @@ typedef enum {
 } state_t;
 
 
-int parse_url(char *input, struct URL *output);
+int parse_url(char *input, struct URL *url);
 
 int create_socket(char *ip, int port);
 
-int login(int sockfd, char *user, char *pass);
+int login(int socket, char *user, char *password);
 
-int passive_mode(int sockfd, char *ip, int *port);
+int passive_mode(int socket, char *ip, int *port);
 
-int read_response(int sockfd, char *response);
+int request_answer(int socket, char *answer);
 
-int request(int sockfd, char *target);
+int request(int socket, char *target);
 
 int get_request(int sockfd, int sockfd2, char *target);
 
