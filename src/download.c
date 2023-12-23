@@ -276,6 +276,9 @@ int passive_mode(int socket, char *ip, int *port){
     return 0;
 }
 
+int shutdown(int sockfd, int sockfd2){
+    return (close(sockfd) && close(sockfd2));
+}
 
 int main(int argc, char *argv[]) {
     if(argc != 2){
@@ -340,6 +343,12 @@ int main(int argc, char *argv[]) {
     if (get_request(socket_fd, data_socket, url_info.file) < 0){
         printf("Error receiving file.\n");
         return -1;
+    }
+
+    // close connection
+    if (shutdown(socket_fd, data_socket) != 0) {
+        printf("Sockets close error\n");
+        exit(-1);
     }
 
     return 0;
