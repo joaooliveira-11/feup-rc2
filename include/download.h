@@ -52,14 +52,6 @@ struct URL {
     char file[MAX_LENGTH];
 };
 
-typedef enum {
-    START,
-    SINGLE,
-    MULTIPLE,
-    END_READ,
-} state_t;
-
-
 int parse_url(char *input, struct URL *url);
 
 int create_socket(char *ip, int port);
