@@ -1,3 +1,6 @@
+>**Project**
+>Curricular Unit: [Rede Computadores](https://sigarra.up.pt/feup/pt/ucurr_geral.ficha_uc_view?pv_ocorrencia_id=520330), 3rd year
+
 # Summary
 This project was done during the second half of the laboratorial classes of RCOM, with the final goal of implementing a program to download files using FTP and the configuration of a computer network.
 
